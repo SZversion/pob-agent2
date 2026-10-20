@@ -4,7 +4,7 @@
 
 ## 1. 문서 목적과 범위
 
-Windows x64용 PoB Agent 앱과 Python MCP 프로세스를 개발·패키징·배포하는 방향을 정의합니다. 창과 채팅 동작은 [Agent 창 기능](agent-window.md), PoB 연결 세부는 [PoB와 Agent 연결 기능](pob-agent-connection.md), MCP 도구와 계산 경계는 [MCP 실행 및 계산기 호출 방식](../MCP.md)을 따릅니다.
+Windows x64용 PoB Agent 앱과 Python MCP 프로세스를 개발·패키징·배포하는 방향을 정의합니다. 창과 채팅 동작은 [Agent 창 기능](agent-window.md), PoB 연결 세부는 [PoB bridge](pob-bridge.md), MCP 도구와 계산 경계는 [MCP 실행 및 계산기 호출 방식](../MCP.md)을 따릅니다.
 
 ## 2. 합의된 대상
 
