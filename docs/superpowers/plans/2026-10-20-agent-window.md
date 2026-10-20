@@ -51,7 +51,7 @@
 - [ ] Ignore only generated `node_modules/` and `out/` directories in `.gitignore`.
 - [ ] Create the main process window at 960×720, resizable, with `contextIsolation`, `sandbox`, and `nodeIntegration` set to `true`, `true`, and `false` respectively; close the app when its window closes.
 - [ ] Add the empty preload entry and verify renderer code imports no Electron or Node modules.
-- [ ] Run `npm run typecheck` and `npm run build`; both must complete successfully.
+- [ ] Run `npm run typecheck`; it must complete successfully. The complete production build runs after Task 2 adds the renderer entry.
 - [ ] Commit each changed file separately, as required by `AGENTS.md`.
 
 ### Task 2: Chat and settings renderer
