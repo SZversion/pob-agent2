@@ -40,10 +40,14 @@ export default function App() {
           <span aria-hidden="true" className="brand-mark">◎</span>
           <span>PoB Agent</span>
         </div>
-        <div aria-label="미리보기: PoB 연결됨" className="connection-status">
-          <span aria-hidden="true" className="status-dot" />
-          <span>PoB 연결됨</span>
-        </div>
+        <button
+          aria-label="설정 열기"
+          className="settings-button"
+          onClick={() => setView('settings')}
+          type="button"
+        >
+          <span aria-hidden="true">⚙</span> 설정
+        </button>
       </header>
 
       <section aria-label="채팅 기록" className="conversation">
@@ -79,14 +83,10 @@ export default function App() {
           <span>샘플 빌드</span>
           <span aria-hidden="true" className="chevron">⌄</span>
         </button>
-        <button
-          aria-label="설정 열기"
-          className="settings-button"
-          onClick={() => setView('settings')}
-          type="button"
-        >
-          <span aria-hidden="true">⚙</span> 설정
-        </button>
+        <div aria-label="미리보기: PoB 연결됨" className="connection-status">
+          <span aria-hidden="true" className="status-dot" />
+          <span>PoB 연결됨</span>
+        </div>
       </footer>
     </main>
   )
