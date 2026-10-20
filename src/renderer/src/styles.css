@@ -41,7 +41,7 @@ button {
   height: 100%;
   flex-direction: column;
   overflow: hidden;
-  padding: 26px 27px 23px;
+  padding: 0 27px 12px;
   border: 1px solid #383c46;
   border-radius: 24px;
   background: #15171c;
@@ -52,7 +52,7 @@ button {
   top: 0;
   right: 0;
   left: 0;
-  height: 62px;
+  height: 42px;
   content: '';
   app-region: drag;
   -webkit-app-region: drag;
@@ -68,10 +68,10 @@ button {
   position: relative;
   z-index: 1;
   display: flex;
-  min-height: 62px;
+  min-height: 42px;
   align-items: center;
   justify-content: space-between;
-  padding: 34px 12px 0 5px;
+  padding: 24px 12px 0 5px;
   border-bottom: 1px solid #363a43;
   -webkit-user-select: none;
   user-select: none;
@@ -86,14 +86,14 @@ button {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 17px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 
 .brand-mark {
   color: #f5f6f8;
-  font-size: 23px;
+  font-size: 16px;
   line-height: 1;
   text-shadow: 1px 0 #77b9ed, -1px 0 #e37b57;
 }
@@ -101,18 +101,18 @@ button {
 .connection-status {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 9px 16px;
+  gap: 5px;
+  padding: 2px 7px;
   border: 1px solid #285d4d;
   border-radius: 30px;
   background: #173a30;
   color: #9de7c8;
-  font-size: 14px;
+  font-size: 10px;
 }
 
 .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #9ee7c8;
 }
@@ -199,25 +199,25 @@ button {
 
 .bottom-bar {
   display: flex;
-  min-height: 58px;
+  min-height: 29px;
   align-items: center;
   justify-content: space-between;
-  margin-top: 13px;
-  padding: 10px 4px 0;
+  margin-top: 7px;
+  padding: 5px 4px 0;
   border-top: 1px solid #363a43;
 }
 
 .build-selector {
   display: flex;
-  min-height: 44px;
+  min-height: 22px;
   align-items: center;
-  gap: 13px;
-  padding: 0 14px;
+  gap: 6px;
+  padding: 0 8px;
   border: 1px solid #454b57;
   border-radius: 12px;
   background: #17191f;
   color: #eff1f5;
-  font-size: 15px;
+  font-size: 10px;
 }
 
 .chevron {
@@ -233,8 +233,8 @@ button {
 }
 
 .settings-button {
-  padding: 8px 2px;
-  font-size: 15px;
+  padding: 2px 1px;
+  font-size: 10px;
   cursor: pointer;
 }
 
@@ -254,29 +254,29 @@ button {
 }
 
 .back-button {
-  padding: 8px;
-  font-size: 21px;
+  padding: 2px;
+  font-size: 13px;
   cursor: pointer;
 }
 
 @media (max-width: 620px) {
   .app-shell {
-    padding: 18px 15px 14px;
+    padding: 0 15px 7px;
     border-radius: 17px;
   }
 
   .topbar {
-    min-height: 62px;
-    padding: 34px 12px 0 2px;
+    min-height: 42px;
+    padding: 24px 12px 0 2px;
   }
 
   .brand {
-    font-size: 15px;
+    font-size: 10px;
   }
 
   .connection-status {
-    padding: 7px 11px;
-    font-size: 12px;
+    padding: 2px 6px;
+    font-size: 9px;
   }
 
   .conversation {
@@ -306,8 +306,8 @@ button {
   }
 
   .bottom-bar {
-    min-height: 48px;
-    margin-top: 10px;
-    padding-top: 4px;
+    min-height: 24px;
+    margin-top: 5px;
+    padding-top: 2px;
   }
 }
