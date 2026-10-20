@@ -10,6 +10,7 @@ PoB Agent는 PoE1 빌드의 딜 메커니즘을 설명하는 PoB와 분리된 Wi
 4. **질문 처리:** Agent는 사용자의 한국어 질문을 해석하고 필요한 계산 결과나 검색 근거를 조회합니다.
 5. **설명 반환:** 모델은 PoB 재계산 결과와 외부 검색 근거를 바탕으로 한국어 답변을 만듭니다.
 6. **Agent 창:** PoB 실행과 함께 별도 데스크톱 Agent 창이 열립니다. 창에서 빌드에 질문하고 연결 대상을 바꿀 수 있습니다. [Agent 창 기능 정의](features/agent-window.md)
+7. **패키징·배포:** Windows x64용 Electron 설치 프로그램에 Python MCP 서버의 PyInstaller `onedir` 결과를 포함하고, Agent 실행 시 MCP 서버를 자동으로 시작합니다. [Agent 패키징 및 배포](features/agent-packaging.md)
 
 확정 수치는 빌드 파일과 PoB 엔진·데이터 버전으로 재계산한 결과를 근거로 합니다. Agent는 PoB 메모리나 화면에서 빌드 데이터를 읽지 않고, 저장되지 않은 변경사항을 사용하지 않으며, PoB UI를 조작하거나 빌드를 수정·저장하지 않습니다.
 
