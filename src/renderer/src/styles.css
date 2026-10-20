@@ -111,11 +111,21 @@ button {
   font-size: 11px;
 }
 
+.connection-status.disconnected {
+  border-color: #744047;
+  background: #3b2228;
+  color: #f2a3ad;
+}
+
 .status-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #9ee7c8;
+}
+
+.connection-status.disconnected .status-dot {
+  background: #f2a3ad;
 }
 
 .conversation {
