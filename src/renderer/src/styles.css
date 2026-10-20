@@ -48,18 +48,23 @@ button {
 
 .topbar {
   display: flex;
-  min-height: 66px;
+  min-height: 62px;
   align-items: center;
   justify-content: space-between;
-  padding: 0 140px 20px 5px;
+  padding: 34px 12px 0 5px;
   border-bottom: 1px solid #363a43;
+  -webkit-app-region: drag;
+}
+
+.topbar button {
+  -webkit-app-region: no-drag;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -239,12 +244,12 @@ button {
   }
 
   .topbar {
-    min-height: 58px;
-    padding: 0 140px 15px 2px;
+    min-height: 62px;
+    padding: 34px 12px 0 2px;
   }
 
   .brand {
-    font-size: 17px;
+    font-size: 15px;
   }
 
   .connection-status {
