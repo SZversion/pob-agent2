@@ -4,8 +4,13 @@ import { join } from 'node:path'
 function createWindow(): void {
   const window = new BrowserWindow({
     title: 'PoB Agent',
-    width: 960,
-    height: 720,
+    width: 460,
+    height: 540,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#15171c',
+      symbolColor: '#f2f3f5',
+    },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
