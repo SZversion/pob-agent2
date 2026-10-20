@@ -87,7 +87,7 @@ button {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -108,7 +108,7 @@ button {
   border-radius: 30px;
   background: #173a30;
   color: #9de7c8;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .status-dot {
@@ -132,7 +132,7 @@ button {
   max-width: 75%;
   padding: 14px 20px;
   border-radius: 20px;
-  font-size: 18px;
+  font-size: 15px;
   line-height: 1.5;
 }
 
@@ -170,7 +170,7 @@ button {
   outline: 0;
   background: transparent;
   color: #e9ebef;
-  font-size: 17px;
+  font-size: 15px;
 }
 
 .composer textarea::placeholder {
@@ -272,13 +272,8 @@ button {
     padding: 0 140px 0 2px;
   }
 
-  .brand {
-    font-size: 12px;
-  }
-
   .connection-status {
     padding: 3px 7px;
-    font-size: 11px;
   }
 
   .conversation {
@@ -289,7 +284,6 @@ button {
   .message {
     max-width: 88%;
     padding: 11px 14px;
-    font-size: 15px;
   }
 
   .composer {
@@ -297,10 +291,6 @@ button {
     gap: 8px;
     padding: 0 10px 0 12px;
     border-radius: 14px;
-  }
-
-  .composer textarea {
-    font-size: 15px;
   }
 
   .send-button {
