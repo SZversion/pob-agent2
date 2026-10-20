@@ -6,6 +6,7 @@ function createWindow(): void {
     title: 'PoB Agent',
     width: 460,
     height: 540,
+    backgroundColor: '#15171c',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#15171c',
