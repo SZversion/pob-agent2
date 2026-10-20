@@ -11,6 +11,7 @@ const PREVIEW_MESSAGES: Message[] = [
     text: '저장된 빌드를 계산한 결과와 장비·스킬 구성을 근거로 설명할게요.',
   },
 ]
+const pobConnected = false
 
 export default function App() {
   const [view, setView] = useState<View>('chat')
@@ -83,9 +84,12 @@ export default function App() {
           <span>샘플 빌드</span>
           <span aria-hidden="true" className="chevron">⌄</span>
         </button>
-        <div aria-label="미리보기: PoB 연결됨" className="connection-status">
+        <div
+          aria-label={`PoB 연결 상태: ${pobConnected ? '연결됨' : '연결 안 됨'}`}
+          className={`connection-status${pobConnected ? '' : ' disconnected'}`}
+        >
           <span aria-hidden="true" className="status-dot" />
-          <span>PoB 연결됨</span>
+          <span>PoB 연결</span>
         </div>
       </footer>
     </main>
