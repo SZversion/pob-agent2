@@ -42,7 +42,6 @@ button {
   flex-direction: column;
   overflow: hidden;
   padding: 0 27px 12px;
-  border: 1px solid #383c46;
   border-radius: 24px;
   background: #15171c;
 }
