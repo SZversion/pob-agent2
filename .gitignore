@@ -1,2 +1,4 @@
 /.agents/skills/
 /.pob/
+/node_modules/
+/out/
