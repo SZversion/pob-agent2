@@ -69,8 +69,16 @@ export default function App() {
           placeholder="무엇이 궁금한가요?"
           rows={1}
         />
-        <button aria-label="전송" className="send-button" disabled type="button">
-          ↑
+        <button
+          aria-label="전송"
+          className="send-button"
+          disabled
+          type="button"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m5 12 7-7 7 7" />
+            <path d="M12 19V5" />
+          </svg>
         </button>
       </section>
 
