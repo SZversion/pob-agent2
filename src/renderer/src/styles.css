@@ -197,9 +197,14 @@ button {
   border: 0;
   border-radius: 50%;
   background: #a4eccb;
-  color: #10271e;
+  color: #f6fbf8;
   font-size: 22px;
   line-height: 1;
+}
+
+.send-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 .send-button:disabled,
