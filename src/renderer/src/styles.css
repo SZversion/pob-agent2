@@ -67,7 +67,7 @@ button {
   position: relative;
   z-index: 1;
   display: flex;
-  min-height: 29px;
+  min-height: 36px;
   align-items: center;
   justify-content: flex-start;
   gap: 16px;
@@ -267,7 +267,7 @@ button {
   }
 
   .topbar {
-    min-height: 29px;
+    min-height: 36px;
     margin: 0;
     padding: 0 140px 0 2px;
   }
