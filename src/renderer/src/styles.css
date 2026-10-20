@@ -46,6 +46,11 @@ button {
   background: #15171c;
 }
 
+.topbar,
+.topbar * {
+  -webkit-app-region: drag;
+}
+
 .topbar {
   display: flex;
   min-height: 62px;
@@ -53,7 +58,6 @@ button {
   justify-content: space-between;
   padding: 34px 12px 0 5px;
   border-bottom: 1px solid #363a43;
-  -webkit-app-region: drag;
 }
 
 .topbar button {
@@ -177,11 +181,11 @@ button {
 
 .bottom-bar {
   display: flex;
-  min-height: 65px;
+  min-height: 58px;
   align-items: center;
   justify-content: space-between;
-  margin-top: 19px;
-  padding: 14px 4px 0;
+  margin-top: 13px;
+  padding: 10px 4px 0;
   border-top: 1px solid #363a43;
 }
 
@@ -284,7 +288,8 @@ button {
   }
 
   .bottom-bar {
-    min-height: 55px;
-    padding-top: 10px;
+    min-height: 48px;
+    margin-top: 10px;
+    padding-top: 4px;
   }
 }
