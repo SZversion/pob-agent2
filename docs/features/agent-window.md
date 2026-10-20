@@ -4,7 +4,7 @@
 
 ## 1. 문서 목적과 범위
 
-PoB Agent의 별도 데스크톱 창, 채팅, 준비 상태, PoB 연결 대상 선택 및 설정 화면을 정의합니다. PoB 프로세스 연결과 빌드 경로 이벤트의 상세는 [PoB와 Agent 연결 기능](pob-agent-connection.md)을, 계산 도구 경계는 [MCP 실행 및 계산기 호출 방식](../MCP.md)을, 패키징과 배포는 [Agent 패키징 및 배포](agent-packaging.md)를 따릅니다.
+PoB Agent의 별도 데스크톱 창, 채팅, 준비 상태, PoB 연결 대상 선택 및 설정 화면을 정의합니다. PoB 연결과 빌드 경로 전달은 [PoB bridge](pob-bridge.md), 계산 도구 경계는 [MCP 실행 및 계산기 호출 방식](../MCP.md), 패키징과 배포는 [Agent 패키징 및 배포](agent-packaging.md)를 따릅니다.
 
 ## 2. PRD: 제품 요구사항
 
@@ -51,7 +51,7 @@ PoB Agent의 별도 데스크톱 창, 채팅, 준비 상태, PoB 연결 대상 �
 | preload/IPC 브리지 | 렌더러에 명시적으로 필요한 최소 API만 제공 |
 | Python MCP 서버 | Agent와 분리된 프로세스로 실행하며 stdio로 통신. 개발·배포 실행 방식은 [Agent 패키징 및 배포](agent-packaging.md), 도구와 계산 경계는 [MCP 문서](../MCP.md) 참조 |
 
-렌더러에 Node/Electron 전체 권한을 노출하지 않습니다. PoB 연결 및 MCP 프로세스 제어는 메인 프로세스가 소유합니다. PoB bridge와 모델 연결 세부는 추후 별도 문서에서 정의합니다.
+렌더러에 Node/Electron 전체 권한을 노출하지 않습니다. PoB 연결 및 MCP 프로세스 제어는 메인 프로세스가 소유합니다. PoB bridge와 모델 연결의 통신·인증 세부는 [PoB bridge 문서](pob-bridge.md)에서 정의합니다.
 
 ### 창과 연결 대상 수명주기
 
@@ -84,4 +84,4 @@ PoB Agent의 별도 데스크톱 창, 채팅, 준비 상태, PoB 연결 대상 �
 ## 5. 별도 문서에서 다룰 내용
 
 - Electron 앱과 Python MCP 서버의 개발 실행, 패키징, Windows 배포: [Agent 패키징 및 배포](agent-packaging.md)
-- PoB bridge와 모델 연결의 통신·인증 세부: 추후 별도 문서에서 정의
+- PoB bridge와 모델 연결의 통신·인증 세부: [PoB bridge 문서](pob-bridge.md)에서 정의
