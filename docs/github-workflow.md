@@ -22,13 +22,13 @@ test/model-evaluation
 
 ### 3. 작업 유형
 
-| 작업 유형  | 용도        | 예시                             |
-| ---------- | ----------- | -------------------------------- |
-| `feature`  | 기능 추가   | `YTH01/feature/model-training`   |
-| `fix`      | 오류 수정   | `OSC02/fix/upload-error`         |
-| `refactor` | 구조 개선   | `KHS02/refactor/pipeline-module` |
-| `docs`     | 문서 수정   | `KHS01/docs/readme`              |
-| `test`     | 테스트·평가 | `YTH01/test/model-evaluation`    |
+| 작업 유형  | 용도        | 예시                       |
+| ---------- | ----------- | -------------------------- |
+| `feature`  | 기능 추가   | `feature/model-training`   |
+| `fix`      | 오류 수정   | `fix/upload-error`         |
+| `refactor` | 구조 개선   | `refactor/pipeline-module` |
+| `docs`     | 문서 수정   | `docs/readme`              |
+| `test`     | 테스트·평가 | `test/model-evaluation`    |
 
 작업 내용은 짧고 구체적인 영문 소문자로 작성합니다. 공백 대신 하이픈을 사용합니다.
 
