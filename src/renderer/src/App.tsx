@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type View = "chat" | "settings";
 type Message = { role: "user" | "assistant"; text: string };
@@ -11,8 +11,6 @@ const PREVIEW_MESSAGES: Message[] = [
     text: "저장된 빌드를 계산한 결과와 장비·스킬 구성을 근거로 설명할게요.",
   },
 ];
-const pobConnected = false;
-
 function resizeTextarea(textarea: HTMLTextAreaElement): void {
   textarea.style.height = "auto";
   const lineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight);
@@ -27,6 +25,30 @@ export default function App() {
   const [inputValue, setInputValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const [bridgeState, setBridgeState] = useState<{
+    targets: PobTarget[];
+    selectedPid: number | null;
+  }>({ targets: [], selectedPid: null });
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [selectionError, setSelectionError] = useState("");
+  const [connectionRequested, setConnectionRequested] = useState(false);
+
+  useEffect(() => {
+    void window.pobBridge.getState().then(setBridgeState);
+    return window.pobBridge.onTargetsChanged((nextState) => {
+      setBridgeState(nextState);
+    });
+  }, []);
+
+  const { targets, selectedPid } = bridgeState;
+  const selectedTarget = targets.find((target) => target.pid === selectedPid) ?? null;
+  const duplicateNames = new Set(
+    targets
+      .filter((target) => target.buildName)
+      .map((target) => target.buildName)
+      .filter((name, index, names) => names.indexOf(name) !== index),
+  );
+
   function sendMessage(): void {
     const text = inputValue.trim();
     if (!text) return;
@@ -36,6 +58,34 @@ export default function App() {
       textareaRef.current.style.height = "1.4em";
       textareaRef.current.style.overflowY = "hidden";
     }
+  }
+
+  async function startConnection(): Promise<void> {
+    setConnectionRequested(true);
+    setSelectionError("");
+    if (targets.length === 1) {
+      await selectTarget(targets[0].pid);
+      return;
+    }
+    if (targets.length > 1) {
+      setSelectorOpen(true);
+      return;
+    }
+    setSelectionError("연결 가능한 PoB 프로세스가 없습니다.");
+  }
+
+  async function selectTarget(pid: number): Promise<void> {
+    const result = await window.pobBridge.selectTarget(pid);
+    if ("error" in result) {
+      setSelectionError(result.error);
+      return;
+    }
+    setBridgeState((current) => ({
+      ...current,
+      selectedPid: result.target.pid,
+    }));
+    setSelectionError("");
+    setSelectorOpen(false);
   }
 
   if (view === "settings") {
@@ -65,14 +115,6 @@ export default function App() {
           </span>
           <span>PoB Agent</span>
         </div>
-        <button
-          aria-label="설정 열기"
-          className="settings-button"
-          onClick={() => setView("settings")}
-          type="button"
-        >
-          <span aria-hidden="true">⚙</span> 설정
-        </button>
       </header>
 
       <section aria-label="채팅 기록" className="conversation">
@@ -127,25 +169,63 @@ export default function App() {
       </section>
 
       <footer className="bottom-bar">
-        <button
-          aria-label="PoB 연결 대상: 샘플 빌드"
-          className="build-selector"
-          disabled
-          type="button"
-        >
-          <span>샘플 빌드</span>
-          <span aria-hidden="true" className="chevron">
-            ⌄
-          </span>
-        </button>
-        <div
-          aria-label={`PoB 연결 상태: ${pobConnected ? "연결됨" : "연결 안 됨"}`}
-          className={`connection-status${pobConnected ? "" : " disconnected"}`}
-        >
-          <span aria-hidden="true" className="status-dot" />
-          <span>PoB 연결</span>
+        <div className="setting-wrap">
+          <button
+            aria-label="설정 열기"
+            className="settings-button"
+            onClick={() => setView("settings")}
+            type="button"
+          >
+            <span aria-hidden="true">⚙</span> 설정
+          </button>
+        </div>
+        <div className="connection-wrap">
+          {selectionError && <span className="selection-error" role="status">{selectionError}</span>}
+          {selectedTarget ? (
+            <div aria-label="PoB 연결 상태: 연결됨" className="connection-status">
+              <span aria-hidden="true" className="status-dot" />
+              <span>PoB 연결</span>
+            </div>
+          ) : (
+            <button
+              aria-expanded={selectorOpen}
+              aria-haspopup={targets.length > 1 ? "listbox" : undefined}
+              aria-label="PoB 연결하기"
+              className="connection-status disconnected"
+              onClick={() => void startConnection()}
+              type="button"
+            >
+              <span aria-hidden="true" className="status-dot" />
+              <span>{connectionRequested ? "PoB 연결하기" : "PoB 연결"}</span>
+            </button>
+          )}
+          {targets.length > 1 && selectorOpen && !selectedTarget && (
+            <div aria-label="연결할 PoB 선택" className="target-menu" role="listbox">
+              {targets.map((target) => {
+                const name = target.buildName ?? "PoB";
+                const label = duplicateNames.has(target.buildName ?? "") ? `${name} · PID ${target.pid}` : name;
+                return (
+                  <button
+                    aria-selected={target.pid === selectedPid}
+                    className="target-option"
+                    key={target.pid}
+                    onClick={() => void selectTarget(target.pid)}
+                    role="option"
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </footer>
     </main>
   );
 }
+
+type PobTarget = {
+  pid: number;
+  buildName: string | null;
+};
