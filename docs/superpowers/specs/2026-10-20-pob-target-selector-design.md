@@ -1,61 +1,61 @@
-# Bridge-backed PoB target selector
+# 브리지 기반 PoB 대상 선택기
 
-> Status: draft for user review. This specification covers the real PoB target list and switching flow, not the full chat or MCP integration.
+> 상태: 대체된 과거 제안입니다. 이 파일을 현재 요구사항으로 사용하지 말고 [PoB 브리지](../../features/pob-bridge.md)와 [PoB 측 브리지 변경](../../features/pob-bridge-pob-side.md)을 따르세요. 현재 설계는 별도의 감시자를 사용하며 빌드 파일 선택기를 제공하지 않습니다.
 
-## Goal
+## 목표
 
-Replace the disabled sample-build button with a selector driven by live PoB bridge sessions. A PoB process that has not registered through the bridge is not shown as connected.
+비활성화된 샘플 빌드 버튼을 활성 PoB 브리지 세션을 기반으로 하는 선택기로 교체합니다. 브리지에 등록하지 않은 PoB 프로세스는 연결된 대상으로 표시하지 않습니다.
 
-## User-visible behavior
+## 사용자에게 보이는 동작
 
-- With no registered PoB, show `PoB` without a dropdown arrow.
-- With one registered PoB, show its saved build name, or `PoB` if it has no saved build, without an arrow.
-- With two or more registered PoBs, show the selected build name and a dropdown arrow. The menu lists all registered instances.
-- When names match, append each PoB process start time to distinguish them.
-- Switching targets takes effect only after the selected PoB confirms that its bridge session is live. On failure, keep the current target and show an error.
-- A PoB that disconnects is removed from the choices. The selected-PoB shutdown behavior remains as defined in `docs/features/pob-bridge.md`.
+- 등록된 PoB가 없으면 드롭다운 화살표 없이 `PoB`를 표시합니다.
+- 등록된 PoB가 하나면 저장된 빌드명을 표시합니다. 저장된 빌드가 없으면 화살표 없이 `PoB`를 표시합니다.
+- 등록된 PoB가 둘 이상이면 선택된 빌드명과 드롭다운 화살표를 표시합니다. 메뉴에는 등록된 모든 인스턴스를 표시합니다.
+- 빌드명이 같으면 구분할 수 있도록 각 PoB 프로세스 시작 시각을 덧붙입니다.
+- 선택한 PoB가 브리지 세션을 유지 중이라고 확인된 뒤에만 대상 전환을 적용합니다. 실패하면 현재 대상을 유지하고 오류를 표시합니다.
+- 연결이 끊긴 PoB는 선택 항목에서 제거합니다. 선택된 PoB 종료 동작은 `docs/features/pob-bridge.md`에 정의된 내용을 따릅니다.
 
-## Ownership and data flow
+## 소유권과 데이터 흐름
 
-1. Electron main owns the PoB bridge listener, the registered-instance list, and the selected target.
-2. Each PoB runs a small Lua bridge client. It registers its PID and active saved-build file path, then reports path changes. The bridge sends no build XML, build contents, calculations, or build name.
-3. Electron validates that the process is alive and the supplied saved path is readable. It reads the local saved file to derive the build name; no PoB memory or unsaved state is used.
-4. A narrow preload API provides the initial target list, target-change requests, and status/list updates to React. The renderer receives no Node or Electron access.
-5. The renderer displays and opens the selector based on the number of live, registered bridge sessions. Selecting an instance asks main to verify it before changing the selected target.
+1. Electron main은 PoB 브리지 리스너, 등록된 인스턴스 목록, 선택 대상을 소유합니다.
+2. 각 PoB는 작은 Lua 브리지 클라이언트를 실행합니다. 클라이언트는 PID와 현재 활성 저장 빌드 파일 경로를 등록한 뒤 경로 변경을 알립니다. 브리지는 빌드 XML, 빌드 내용, 계산값, 빌드명을 전송하지 않습니다.
+3. Electron은 프로세스가 살아 있는지, 전달된 저장 경로를 읽을 수 있는지 검증합니다. 로컬 저장 파일을 읽어 빌드명을 추출하며 PoB 메모리나 저장하지 않은 상태는 사용하지 않습니다.
+4. 범위가 좁은 preload API는 초기 대상 목록, 대상 변경 요청, 상태/목록 업데이트를 React에 제공합니다. 렌더러에는 Node나 Electron 접근 권한을 주지 않습니다.
+5. 렌더러는 살아 있는 브리지 세션 수에 따라 선택기를 표시하고 엽니다. 인스턴스를 선택하면 main에 검증을 요청한 뒤 선택 대상을 변경합니다.
 
-## Local transport
+## 로컬 전송
 
-Use a TCP listener bound only to `127.0.0.1`. The Agent chooses an available port and publishes the port plus a random per-user session token in a small bridge configuration file under the user's application-data directory. PoB reads this file and connects with LuaSocket, which is present in the local PoB distribution. Messages use newline-delimited JSON and include an event type, PID, and saved-build path only. The token authenticates the local session; the port is not exposed on external network interfaces.
+TCP 리스너는 `127.0.0.1`에만 바인딩합니다. Agent가 사용 가능한 포트를 선택해 포트와 사용자별 무작위 세션 토큰을 사용자 애플리케이션 데이터 디렉터리 아래의 작은 브리지 설정 파일에 게시합니다. PoB는 이 파일을 읽고 로컬 PoB 배포본에 포함된 LuaSocket으로 연결합니다. 메시지는 줄바꿈으로 구분되는 JSON이며 이벤트 유형, PID, 저장된 빌드 경로만 포함합니다. 토큰은 로컬 세션을 인증하며, 포트는 외부 네트워크 인터페이스에 공개되지 않습니다.
 
-PoB retries registration while the Agent is unavailable, so starting PoB before or after Agent can produce the same live target list. A closed connection removes that instance. Build-path updates replace only that instance's path and derived label.
+Agent가 실행되기 전이나 실행된 뒤 PoB를 시작해도 같은 활성 대상 목록을 유지할 수 있도록 PoB는 등록을 재시도합니다. 연결이 닫히면 해당 인스턴스를 제거합니다. 빌드 경로 업데이트는 그 인스턴스의 경로와 파생된 라벨만 교체합니다.
 
-## Integration activation
+## 연동 활성화
 
-The bridge code is not installed merely by opening Agent. A user-initiated integration action in Settings selects a PoB directory, validates the supported hook point, creates a backup, and applies the small Lua bridge hook. The action reports unsupported or failed installations without claiming a connection. Restoring the backup must be available from the same integration area.
+Agent를 여는 것만으로 브리지 코드를 설치하지 않습니다. 사용자가 Settings에서 연동을 실행하면 PoB 디렉터리를 선택하고 지원되는 후크 지점을 검증한 뒤 백업을 만들고 작은 Lua 브리지 후크를 적용합니다. 지원되지 않거나 설치에 실패하면 연결된 상태라고 표시하지 않고 결과를 알립니다. 같은 연동 영역에서 백업을 복구할 수 있어야 합니다.
 
-The current PoB copy contains `Launch.lua`, `Modules/Build.lua`, LuaSocket, and `dkjson.lua`. The implementation must validate the actual hook APIs before writing to any PoB directory. Updates may replace the hook and must return the UI to disconnected until re-enabled.
+현재 PoB 사본에는 `Launch.lua`, `Modules/Build.lua`, LuaSocket, `dkjson.lua`가 있습니다. PoB 디렉터리에 파일을 쓰기 전에 실제 후크 API를 검증해야 합니다. 업데이트로 후크가 교체되면 다시 활성화하기 전까지 UI는 연결 해제 상태로 돌아가야 합니다.
 
-## Boundaries
+## 경계
 
-- Do not infer a connection from process names or open windows.
-- The bridge transmits only process identity and saved-build path; the Agent reads the file locally.
-- Do not read PoB memory, inspect its UI, or access unsaved build changes.
-- Automatic Agent startup, single-instance forwarding, MCP/model readiness, chat streaming, and queue behavior are separate work from this selector slice.
-- Do not modify a PoB directory until the user explicitly starts integration in Settings.
+- 프로세스 이름이나 열린 창을 근거로 연결을 추정하지 않습니다.
+- 브리지는 프로세스 식별 정보와 저장된 빌드 경로만 전송합니다. Agent가 파일을 로컬에서 읽습니다.
+- PoB 메모리를 읽거나 UI를 살펴보거나 저장하지 않은 빌드 변경 사항에 접근하지 않습니다.
+- Agent 자동 시작, 단일 인스턴스 전달, MCP/모델 준비 상태, 채팅 스트리밍, 큐 동작은 이 선택기 작업과 별개입니다.
+- 사용자가 Settings에서 연동을 명시적으로 시작하기 전에는 어떤 PoB 디렉터리도 수정하지 않습니다.
 
-## Acceptance criteria
+## 완료 기준
 
-- Zero, one, and multiple live bridge sessions render the specified selector states.
-- Multiple registered PoBs can be selected; failed verification leaves the current target selected.
-- Duplicate build names are distinguishable by process start time.
-- A session disconnect removes its option, and a path update changes only its displayed build name.
-- Invalid PID, missing/unreadable path, malformed message, or authentication failure never becomes a connected target.
-- Renderer access remains limited to the documented preload API.
-- A real supported PoB installation can register, report a saved-build path, and be restored to its original files after integration is removed.
+- 브리지 세션이 0개, 1개, 여러 개인 상태에 따라 명시된 선택기 UI를 표시합니다.
+- 등록된 PoB가 여러 개일 때 선택할 수 있으며 검증 실패 시 현재 선택을 유지합니다.
+- 빌드명이 같으면 프로세스 시작 시각으로 구분할 수 있습니다.
+- 세션 연결이 끊기면 선택 항목이 제거되고, 경로가 바뀌면 해당 빌드명만 변경됩니다.
+- 잘못된 PID, 누락되었거나 읽을 수 없는 경로, 형식이 잘못된 메시지, 인증 실패는 연결된 대상으로 처리되지 않습니다.
+- 렌더러 접근은 문서화된 preload API로 제한됩니다.
+- 실제 지원되는 PoB 설치본이 등록할 수 있고, 연동을 제거했을 때 원래 파일을 복구할 수 있습니다.
 
-## Decisions still required before implementation
+## 구현 전에 결정할 사항
 
-- The supported PoB version and exact hook point/signature. The local distribution is a discovery aid, not a compatibility promise.
-- The bridge configuration directory and token-file access policy for Windows.
-- Whether Settings supports one PoB directory or multiple installations, and how backup conflicts are presented.
-- Actual-PoB integration QA cannot be claimed until a supported PoB version and its connection hook are validated.
+- 지원할 PoB 버전과 정확한 후크 지점/시그니처. 로컬 배포본은 조사에 참고할 수 있지만 호환성을 보장하는 기준은 아닙니다.
+- Windows에서 브리지 설정 디렉터리와 토큰 파일 접근을 제어하는 방법.
+- Settings에서 PoB 디렉터리 하나만 지원할지 여러 설치본을 지원할지, 백업 충돌을 어떻게 표시할지.
+- 지원되는 PoB 버전과 연결 후크를 검증하기 전까지 실제 PoB 연동 QA는 완료로 볼 수 없습니다.
