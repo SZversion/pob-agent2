@@ -113,6 +113,21 @@ button {
   font-size: 11px;
 }
 
+.connection-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-status.disconnected {
+  cursor: pointer;
+}
+
+.connection-status.disconnected:hover {
+  background: #4a272e;
+}
+
 .connection-status.disconnected {
   border-color: #744047;
   background: #3b2228;
@@ -225,6 +240,10 @@ button {
   border-top: 1px solid #363a43;
 }
 
+.selector-wrap {
+  position: relative;
+}
+
 .build-selector {
   display: flex;
   min-height: 26px;
@@ -236,6 +255,49 @@ button {
   background: #17191f;
   color: #eff1f5;
   font-size: 12px;
+}
+
+.build-selector:not(:disabled) {
+  cursor: pointer;
+}
+
+.target-menu {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  min-width: 180px;
+  max-width: min(300px, calc(100vw - 40px));
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid #454b57;
+  border-radius: 10px;
+  background: #22252d;
+  box-shadow: 0 8px 24px #0008;
+}
+
+.target-option {
+  overflow: hidden;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.target-option:hover,
+.target-option[aria-selected="true"] {
+  background: #343943;
+}
+
+.selection-error {
+  color: #f2a3ad;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .chevron {
