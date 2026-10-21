@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { once } from 'node:events'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -25,7 +25,9 @@ test('tracks per-PID state-file changes and removes deleted targets', async (con
   const buildPath = join(userDataPath, 'sample.xml')
   await writeFile(buildPath, '<build />')
   const updated = once(bridge, 'changed', { signal: AbortSignal.timeout(1500) })
-  await writeFile(statePath, JSON.stringify({ pid: process.pid, buildPath }))
+  const tempStatePath = `${statePath}.tmp`
+  await writeFile(tempStatePath, JSON.stringify({ pid: process.pid, buildPath }))
+  await rename(tempStatePath, statePath)
   await updated
   assert.deepEqual(bridge.getTargets(), [{ pid: process.pid, buildPath, buildName: 'sample' }])
 
