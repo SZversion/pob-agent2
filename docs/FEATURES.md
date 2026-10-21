@@ -4,12 +4,12 @@
 
 PoB Agent는 PoE1 빌드의 딜 메커니즘을 설명하는 PoB와 분리된 Windows 데스크톱 프로그램입니다. 전체 기능 흐름은 다음과 같습니다.
 
-1. **PoB 연결:** 사용자가 Agent에서 연동을 시작하고, 설치된 PoB의 연결 코드가 Agent 시작과 활성 저장 빌드 경로 전달을 연결합니다. [PoB bridge](features/pob-bridge.md)
+1. **PoB 연결:** 별도 감시자가 기본적으로 Windows 로그인 시 실행되고, PoB를 감지하면 Agent를 시작해 프로세스 ID를 전달합니다. PoB의 최소 연결 코드는 활성 저장 빌드 경로만 알립니다. [PoB bridge](features/pob-bridge.md)
 2. **빌드 입력:** Agent는 전달된 저장 빌드 파일 경로를 사용해 로컬에서 빌드 파일을 읽습니다.
 3. **수치 재계산:** Python MCP 서버의 계산 도구가 별도 LuaJIT 프로세스와 사용자가 준비한 PoB 계산 소스를 통해 수치를 다시 계산합니다. [MCP 및 계산 흐름](MCP.md)
 4. **질문 처리:** Agent는 사용자의 한국어 질문을 해석하고 필요한 계산 결과나 검색 근거를 조회합니다.
 5. **설명 반환:** 모델은 PoB 재계산 결과와 외부 검색 근거를 바탕으로 한국어 답변을 만듭니다.
-6. **Agent 창:** PoB 실행과 함께 별도 데스크톱 Agent 창이 열립니다. 창에서 빌드에 질문하고 연결 대상을 바꿀 수 있습니다. [Agent 창 기능 정의](features/agent-window.md)
+6. **Agent 창:** PoB 실행과 함께 별도 데스크톱 Agent 창이 열립니다. 복수 PoB 프로세스 중 연결 대상을 고를 수 있고, 빌드 파일은 UI에서 선택하지 않습니다. 자연어로 현재 빌드 또는 다른 저장 빌드를 질문합니다. [Agent 창 기능 정의](features/agent-window.md)
 7. **패키징·배포:** Windows x64용 Electron 설치 프로그램에 Python MCP 서버의 PyInstaller `onedir` 결과를 포함하고, Agent 실행 시 MCP 서버를 자동으로 시작합니다. [Agent 패키징 및 배포](features/agent-packaging.md)
 
 확정 수치는 빌드 파일과 PoB 엔진·데이터 버전으로 재계산한 결과를 근거로 합니다. Agent는 PoB 메모리나 화면에서 빌드 데이터를 읽지 않고, 저장되지 않은 변경사항을 사용하지 않으며, PoB UI를 조작하거나 빌드를 수정·저장하지 않습니다.
