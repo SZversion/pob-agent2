@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 type View = "chat" | "settings";
 type Message = { role: "user" | "assistant"; text: string };
@@ -13,8 +13,30 @@ const PREVIEW_MESSAGES: Message[] = [
 ];
 const pobConnected = false;
 
+function resizeTextarea(textarea: HTMLTextAreaElement): void {
+  textarea.style.height = "auto";
+  const lineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight);
+  const maxHeight = lineHeight * 5;
+  textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
 export default function App() {
   const [view, setView] = useState<View>("chat");
+  const [messages, setMessages] = useState(PREVIEW_MESSAGES);
+  const [inputValue, setInputValue] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function sendMessage(): void {
+    const text = inputValue.trim();
+    if (!text) return;
+    setMessages((current) => [...current, { role: "user", text }]);
+    setInputValue("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "1.4em";
+      textareaRef.current.style.overflowY = "hidden";
+    }
+  }
 
   if (view === "settings") {
     return (
@@ -54,7 +76,7 @@ export default function App() {
       </header>
 
       <section aria-label="채팅 기록" className="conversation">
-        {PREVIEW_MESSAGES.map((message, index) => (
+        {messages.map((message, index) => (
           <div
             className={`message message-${message.role}`}
             key={`${message.role}-${index}`}
@@ -67,14 +89,26 @@ export default function App() {
       <section aria-label="질문 입력" className="composer">
         <textarea
           aria-label="질문 입력"
-          disabled
+          onChange={(event) => {
+            setInputValue(event.currentTarget.value);
+            resizeTextarea(event.currentTarget);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              sendMessage();
+            }
+          }}
           placeholder="무엇이 궁금한가요?"
+          ref={textareaRef}
           rows={1}
+          value={inputValue}
         />
         <button
           aria-label="전송"
           className="send-button"
-          disabled
+          disabled={!inputValue.trim()}
+          onClick={sendMessage}
           type="button"
         >
           <svg
