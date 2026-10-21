@@ -1,6 +1,6 @@
 # Bridge-backed PoB target selector
 
-> Status: draft for user review. This specification covers the real PoB target list and switching flow, not the full chat or MCP integration.
+> Status: superseded historical proposal. Do not use this file as current requirements; follow [PoB Bridge](../../features/pob-bridge.md) and [PoB-side bridge changes](../../features/pob-bridge-pob-side.md). The current design uses a separate watcher for PoB process detection and does not provide a build-file selector.
 
 ## Goal
 
