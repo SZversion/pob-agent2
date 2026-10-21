@@ -1,5 +1,7 @@
 # Bridge-backed PoB target selector Implementation Plan
 
+> Status: superseded historical plan. Do not execute this plan; follow [PoB Bridge](../../features/pob-bridge.md) and [PoB-side bridge changes](../../features/pob-bridge-pob-side.md) for current requirements.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the disabled sample-build control with a selector backed only by live, authenticated PoB bridge sessions.
