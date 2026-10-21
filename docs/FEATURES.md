@@ -4,7 +4,7 @@
 
 PoB Agent는 PoE1 빌드의 딜 메커니즘을 설명하는 PoB와 분리된 Windows 데스크톱 프로그램입니다. 전체 기능 흐름은 다음과 같습니다.
 
-1. **PoB 연결:** 별도 감시자가 기본적으로 Windows 로그인 시 실행되고, PoB를 감지하면 Agent를 시작해 프로세스 ID를 전달합니다. PoB의 최소 연결 코드는 활성 저장 빌드 경로만 알립니다. [PoB bridge](features/pob-bridge.md)
+1. **PoB 연결:** [PoB 측 코드](features/pob-side.md)는 PID와 활성 저장 빌드 경로를 상태 파일에 기록합니다. [별도 감시자](features/pob-watcher.md)는 PoB를 감지해 Agent를 시작하고 PID를 전달합니다. [Agent 측 브리지](features/pob-bridge.md)는 상태 파일을 읽어 연결된 빌드 경로를 관리합니다. 브리지가 없는 설치본은 [브리지 설치](features/pob-bridge-install.md) 흐름을 사용합니다.
 2. **빌드 입력:** Agent는 전달된 저장 빌드 파일 경로를 사용해 로컬에서 빌드 파일을 읽습니다.
 3. **수치 재계산:** Python MCP 서버의 계산 도구가 별도 LuaJIT 프로세스와 사용자가 준비한 PoB 계산 소스를 통해 수치를 다시 계산합니다. [MCP 및 계산 흐름](MCP.md)
 4. **질문 처리:** Agent는 사용자의 한국어 질문을 해석하고 필요한 계산 결과나 검색 근거를 조회합니다.

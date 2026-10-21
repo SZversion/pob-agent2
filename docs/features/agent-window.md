@@ -1,10 +1,10 @@
 # Agent 창 기능
 
-> 상태: 제품 요구사항 합의, 구현 설계 초안. 기능은 아직 구현되지 않았으며 PoB bridge와 모델 연결 세부는 별도 문서에서 다룹니다.
+> 상태: 제품 요구사항 합의, 구현 설계 초안. 창과 PoB 연결 후보 UI는 일부 구현됐고, 채팅·모델·MCP 연결은 아직 구현되지 않았습니다.
 
 ## 1. 문서 목적과 범위
 
-PoB Agent의 별도 데스크톱 창, 채팅, 준비 상태 및 설정 화면을 정의합니다. PoB 프로세스 선택은 [PoB 프로세스 선택기](pob-process-selector.md), 연결과 빌드 경로 전달은 [PoB bridge](pob-bridge.md), 계산 도구 경계는 [MCP 실행 및 계산기 호출 방식](../MCP.md), 패키징과 배포는 [Agent 패키징 및 배포](agent-packaging.md)를 따릅니다.
+PoB Agent의 별도 데스크톱 창, 채팅, 준비 상태 및 설정 화면을 정의합니다. PoB 프로세스 감지는 [감시자](pob-watcher.md), 선택은 [PoB 프로세스 선택기](pob-process-selector.md), 상태 파일 수신과 빌드 경로 전달은 [Agent 측 브리지](pob-bridge.md), 설치본 변경은 [브리지 설치](pob-bridge-install.md), 계산 도구 경계는 [MCP 실행 및 계산기 호출 방식](../MCP.md), 패키징과 배포는 [Agent 패키징 및 배포](agent-packaging.md)를 따릅니다.
 
 ## 2. PRD: 제품 요구사항
 
@@ -16,8 +16,8 @@ PoB Agent의 별도 데스크톱 창, 채팅, 준비 상태 및 설정 화면을
 
 - 기술 스택은 Electron, React, TypeScript, Vite입니다. Electron은 데스크톱 앱 셸과 메인 프로세스를 제공하며, Vite는 React 렌더러의 개발 서버와 빌드 도구로 사용합니다.
 - Electron 메인 프로세스가 앱 수명주기, PoB 연결 관리자, Python MCP 프로세스 시작·종료와 모델 연결을 관리합니다. React 렌더러는 채팅 UI를 표시하고 좁은 preload/IPC 인터페이스를 통해 필요한 동작만 요청합니다.
-- 별도 PoB 감시자 프로세스가 Windows 로그인 시 자동 실행되며, 사용자는 설정에서 수동 실행 방식으로 변경할 수 있습니다. 로그인 자동 실행이 기본값입니다. 감시자가 PoB 프로세스를 감지하면 Agent를 실행하고 PID를 전달합니다.
-- Agent는 사용자 세션에서 하나만 실행됩니다. Agent가 이미 실행 중이지만 연결된 PoB가 없으면 감시자는 중복 실행하지 않고 첫 연결 후보를 기존 Agent에 전달합니다. 이미 연결된 뒤 시작한 PoB는 무시합니다.
+- 별도 PoB 감시자 프로세스가 Windows 로그인 시 자동 실행되며, 사용자는 설정에서 수동 실행 방식으로 변경할 수 있습니다. 로그인 자동 실행이 기본값입니다. 감시자가 PoB 프로세스를 감지하면 Agent를 실행하고 PID를 전달합니다. 감시자의 실행 규칙은 [PoB 프로세스 감시자](pob-watcher.md)를 따릅니다.
+- Agent는 사용자 세션에서 하나만 실행됩니다. Agent가 이미 실행 중이지만 연결된 PoB가 없으면 감시자는 중복 Agent를 남기지 않고 시작 시 확인한 PoB의 전체 PID 목록을 기존 Agent에 전달합니다. 이미 연결된 뒤 시작한 PoB는 무시합니다.
 - Agent 창은 기본 960×720, 크기 조절 가능하며 창 크기는 저장하지 않습니다.
 - Agent 창을 닫으면 Agent 프로세스가 종료됩니다. 연결된 PoB를 닫아도 Agent가 종료됩니다. 연결된 PoB가 종료되어도 다른 실행 중인 PoB로 자동 승계하지 않습니다.
 - 사용자가 Agent를 종료한 뒤 PoB가 하나라도 실행 중이면 감시자는 Agent를 자동 실행하지 않습니다. 모든 PoB가 종료된 뒤 새 PoB가 실행되면 다시 자동 실행할 수 있고, 사용자가 Agent를 직접 실행하는 것도 허용합니다.
@@ -54,13 +54,13 @@ PoB Agent의 별도 데스크톱 창, 채팅, 준비 상태 및 설정 화면을
 | preload/IPC 브리지 | 렌더러에 명시적으로 필요한 최소 API만 제공 |
 | Python MCP 서버 | Agent와 분리된 프로세스로 실행하며 stdio로 통신. 개발·배포 실행 방식은 [Agent 패키징 및 배포](agent-packaging.md), 도구와 계산 경계는 [MCP 문서](../MCP.md) 참조 |
 
-렌더러에 Node/Electron 전체 권한을 노출하지 않습니다. PoB 연결 및 MCP 프로세스 제어는 메인 프로세스가 소유합니다. PoB bridge와 모델 연결의 통신·인증 세부는 [PoB bridge 문서](pob-bridge.md)에서 정의합니다.
+렌더러에 Node/Electron 전체 권한을 노출하지 않습니다. PoB 연결 및 MCP 프로세스 제어는 메인 프로세스가 소유합니다. PoB 상태 파일 수신은 [Agent 측 브리지](pob-bridge.md)를 따르며 모델 연결의 통신·인증 세부는 아직 정하지 않았습니다.
 
 ### 창 수명주기
 
-- Agent가 수동 실행되면 PoB가 없을 때 연결 해제 상태로 대기하고, 이후 PoB가 실행되면 자동 연결합니다. 설치된 브리지가 없는 경우 연결 버튼에서 사용자가 PoB 설치 폴더를 고르면 Agent가 파일을 수정하고 재시작을 안내합니다.
+- Agent가 수동 실행되면 PoB가 없을 때 연결 해제 상태로 대기하고, 이후 PoB가 실행되면 자동 연결합니다. 설치된 브리지가 없는 경우의 연결 버튼과 재시작 안내는 [브리지 설치](pob-bridge-install.md)를 따릅니다.
 - 연결 가능한 PoB가 하나면 자동 연결하고 여러 개면 사용자가 선택합니다. 최초 연결 이후 대상은 바꿀 수 없습니다. 자세한 동작은 [PoB 프로세스 선택기](pob-process-selector.md)에 정의합니다.
-- 감시자의 시작 방식과 로그인 자동 실행 설정은 [Agent 패키징 및 배포](agent-packaging.md)를 따릅니다.
+- 감시자의 시작 방식과 로그인 자동 실행 설정은 [PoB 프로세스 감시자](pob-watcher.md)를 따릅니다.
 
 ### 채팅 상태와 준비 절차
 
@@ -86,4 +86,6 @@ PoB Agent의 별도 데스크톱 창, 채팅, 준비 상태 및 설정 화면을
 ## 5. 별도 문서에서 다룰 내용
 
 - Electron 앱과 Python MCP 서버의 개발 실행, 패키징, Windows 배포: [Agent 패키징 및 배포](agent-packaging.md)
-- PoB bridge와 모델 연결의 통신·인증 세부: [PoB bridge 문서](pob-bridge.md)에서 정의
+- PoB 상태 파일 수신과 연결 동작: [Agent 측 브리지](pob-bridge.md)에서 정의
+- 감시자의 프로세스 감지와 Agent 실행: [PoB 프로세스 감시자](pob-watcher.md)에서 정의
+- 설치본에 송신 코드 적용: [브리지 설치](pob-bridge-install.md)에서 정의
