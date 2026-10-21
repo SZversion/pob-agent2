@@ -52,7 +52,7 @@ button {
   right: 0;
   left: 0;
   height: 29px;
-  content: '';
+  content: "";
   app-region: drag;
   -webkit-app-region: drag;
 }
@@ -96,7 +96,9 @@ button {
   color: #f5f6f8;
   font-size: 19px;
   line-height: 1;
-  text-shadow: 1px 0 #77b9ed, -1px 0 #e37b57;
+  text-shadow:
+    1px 0 #77b9ed,
+    -1px 0 #e37b57;
 }
 
 .connection-status {
@@ -196,10 +198,15 @@ button {
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: #a4eccb;
-  color: #10271e;
+  background: #54866f;
+  color: #f6fbf8;
   font-size: 22px;
   line-height: 1;
+}
+
+.send-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 .send-button:disabled,
