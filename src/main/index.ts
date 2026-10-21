@@ -70,6 +70,9 @@ ipcMain.handle('pob:select-target', (_event, pid: unknown) => {
   if (!Number.isSafeInteger(pid) || (pid as number) <= 0 || !pobBridge?.hasTarget(pid as number)) {
     return { error: '선택한 PoB 연결이 종료되었습니다.' }
   }
+  if (hasSelectedTarget && selectedPid !== pid) {
+    return { error: '연결된 PoB는 변경할 수 없습니다.' }
+  }
   selectedPid = pid as number
   hasSelectedTarget = true
   const target = pobBridge.getTargets().find((item) => item.pid === selectedPid)
