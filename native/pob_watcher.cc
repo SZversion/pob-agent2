@@ -25,6 +25,7 @@ struct Subscription {
 };
 
 static HANDLE watcherMutex = nullptr;
+static HANDLE watcherPipe = nullptr;
 static Subscription* subscription = nullptr;
 
 static DWORD CurrentSession() {
@@ -103,6 +104,47 @@ static bool ReadString(napi_env env, napi_value value, std::wstring* result) {
   return true;
 }
 
+static napi_value CloseWatcherPipe(napi_env env, napi_callback_info) {
+  if (watcherPipe) CloseHandle(watcherPipe);
+  watcherPipe = nullptr;
+  napi_value result;
+  napi_get_undefined(env, &result);
+  return result;
+}
+
+static napi_value IsWatcherPipeConnected(napi_env env, napi_callback_info) {
+  const bool connected = watcherPipe && PeekNamedPipe(watcherPipe, nullptr, 0, nullptr, nullptr, nullptr);
+  if (!connected && watcherPipe) {
+    CloseHandle(watcherPipe);
+    watcherPipe = nullptr;
+  }
+  napi_value result;
+  napi_get_boolean(env, connected, &result);
+  return result;
+}
+
+static napi_value OpenWatcherPipe(napi_env env, napi_callback_info info) {
+  size_t count = 1;
+  napi_value args[1];
+  napi_get_cb_info(env, info, &count, args, nullptr, nullptr);
+  std::wstring path;
+  if (count != 1 || !ReadString(env, args[0], &path)) return ThrowWindowsError(env, "Watcher pipe path is required");
+  if (watcherPipe) return ThrowWindowsError(env, "Watcher pipe is already open");
+  HANDLE pipe = CreateFileW(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+  if (pipe == INVALID_HANDLE_VALUE) {
+    DWORD error = GetLastError();
+    if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PIPE_BUSY) {
+      SetLastError(error);
+      return ThrowLastError(env, "Could not connect to PoB watcher pipe");
+    }
+  } else {
+    watcherPipe = pipe;
+  }
+  napi_value result;
+  napi_get_boolean(env, watcherPipe != nullptr, &result);
+  return result;
+}
+
 static std::wstring QuoteArgument(const std::wstring& argument) {
   std::wstring quoted = L"\"";
   size_t slashes = 0;
@@ -145,47 +187,33 @@ static napi_value LaunchAsUser(napi_env env, napi_callback_info info) {
   DWORD shellPid = 0;
   if (shell) GetWindowThreadProcessId(shell, &shellPid);
   if (!shellPid) return ThrowWindowsError(env, "Could not find the standard user shell");
-  HANDLE shellProcess = OpenProcess(PROCESS_CREATE_PROCESS | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, shellPid);
+  HANDLE shellProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, shellPid);
   if (!shellProcess) return ThrowLastError(env, "Could not open the standard user shell");
-  HANDLE shellToken = nullptr;
-  BOOL opened = OpenProcessToken(shellProcess, TOKEN_QUERY, &shellToken);
+  HANDLE userToken = nullptr;
+  BOOL opened = OpenProcessToken(shellProcess, TOKEN_QUERY | TOKEN_DUPLICATE, &userToken);
+  CloseHandle(shellProcess);
   if (!opened) {
-    CloseHandle(shellProcess);
     return ThrowLastError(env, "Could not open the standard user shell token");
   }
+  HANDLE primaryToken = nullptr;
+  BOOL duplicated = DuplicateTokenEx(userToken, MAXIMUM_ALLOWED, nullptr, SecurityImpersonation,
+                                     TokenPrimary, &primaryToken);
+  CloseHandle(userToken);
+  if (!duplicated) return ThrowLastError(env, "Could not prepare the standard user token");
   TOKEN_ELEVATION elevation{};
   DWORD returned = 0;
-  BOOL elevationOk = GetTokenInformation(shellToken, TokenElevation, &elevation, sizeof(elevation), &returned);
+  BOOL elevationOk = GetTokenInformation(primaryToken, TokenElevation, &elevation, sizeof(elevation), &returned);
   if (!elevationOk || elevation.TokenIsElevated) {
-    CloseHandle(shellToken);
-    CloseHandle(shellProcess);
+    CloseHandle(primaryToken);
     return ThrowWindowsError(env, "Shell token is not a standard user token");
   }
-  CloseHandle(shellToken);
-
-  SIZE_T attributeSize = 0;
-  InitializeProcThreadAttributeList(nullptr, 1, 0, &attributeSize);
-  std::vector<char> attributeBuffer(attributeSize);
-  auto* attributes = reinterpret_cast<PPROC_THREAD_ATTRIBUTE_LIST>(attributeBuffer.data());
-  if (!InitializeProcThreadAttributeList(attributes, 1, 0, &attributeSize)) {
-    CloseHandle(shellProcess);
-    return ThrowLastError(env, "Could not prepare standard user process attributes");
-  }
-  if (!UpdateProcThreadAttribute(attributes, 0, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS,
-                                 &shellProcess, sizeof(shellProcess), nullptr, nullptr)) {
-    DeleteProcThreadAttributeList(attributes);
-    CloseHandle(shellProcess);
-    return ThrowLastError(env, "Could not set the standard user process parent");
-  }
-  STARTUPINFOEXW startup{};
-  startup.StartupInfo.cb = sizeof(startup);
-  startup.lpAttributeList = attributes;
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
+  startup.lpDesktop = const_cast<LPWSTR>(L"winsta0\\default");
   PROCESS_INFORMATION process{};
-  BOOL created = CreateProcessW(executable.c_str(), commandLine.data(), nullptr, nullptr, FALSE,
-                                EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW,
-                                nullptr, nullptr, &startup.StartupInfo, &process);
-  DeleteProcThreadAttributeList(attributes);
-  CloseHandle(shellProcess);
+  BOOL created = CreateProcessWithTokenW(primaryToken, 0, executable.c_str(), commandLine.data(),
+                                         CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process);
+  CloseHandle(primaryToken);
   if (!created) return ThrowLastError(env, "Could not launch PoB Agent as standard user");
   CloseHandle(process.hThread);
   CloseHandle(process.hProcess);
@@ -424,6 +452,9 @@ static napi_value Init(napi_env env, napi_value exports) {
     {"isProcessAlive", nullptr, IsProcessAlive, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"launchAsUser", nullptr, LaunchAsUser, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"launchElevated", nullptr, LaunchElevated, nullptr, nullptr, nullptr, napi_default, nullptr},
+    {"openWatcherPipe", nullptr, OpenWatcherPipe, nullptr, nullptr, nullptr, napi_default, nullptr},
+    {"isWatcherPipeConnected", nullptr, IsWatcherPipeConnected, nullptr, nullptr, nullptr, napi_default, nullptr},
+    {"closeWatcherPipe", nullptr, CloseWatcherPipe, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"listPobs", nullptr, ListPobs, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"subscribe", nullptr, Subscribe, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"stop", nullptr, Stop, nullptr, nullptr, nullptr, napi_default, nullptr},
