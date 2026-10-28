@@ -21,10 +21,12 @@ export class PobBridgeService extends EventEmitter {
   private watcherRetryTimer: ReturnType<typeof setTimeout> | null = null
   private processCheck: ReturnType<typeof setInterval> | null = null
   private readonly targets = new Map<number, PobTarget>()
+  private readonly isConfirmedPob: (pid: number) => boolean
 
-  constructor(userDataPath: string) {
+  constructor(userDataPath: string, isConfirmedPob: (pid: number) => boolean) {
     super()
     this.stateDirectory = join(userDataPath, 'pob-bridge')
+    this.isConfirmedPob = isConfirmedPob
   }
 
   async start(): Promise<void> {
@@ -53,6 +55,10 @@ export class PobBridgeService extends EventEmitter {
 
   hasTarget(pid: number): boolean {
     return this.targets.has(pid)
+  }
+
+  refresh(): void {
+    this.scheduleRefresh()
   }
 
   isProcessAlive(pid: number): boolean {
@@ -107,6 +113,7 @@ export class PobBridgeService extends EventEmitter {
         await rm(statePath, { force: true })
         continue
       }
+      if (!this.isConfirmedPob(pid)) continue
 
       const buildPath = await this.readableBuildPath(bridgeState.buildPath ?? null)
       nextTargets.set(pid, {

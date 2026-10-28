@@ -9,7 +9,8 @@ import { PobBridgeService } from './pob-bridge.ts'
 test('tracks per-PID state-file changes and removes deleted targets', async (context) => {
   const userDataPath = await mkdtemp(join(tmpdir(), 'pob-bridge-'))
   const stateDirectory = join(userDataPath, 'pob-bridge')
-  const bridge = new PobBridgeService(userDataPath)
+  let confirmed = false
+  const bridge = new PobBridgeService(userDataPath, (pid) => confirmed && pid === process.pid)
   context.after(async () => {
     await bridge.stop()
     await rm(userDataPath, { recursive: true, force: true })
@@ -17,8 +18,13 @@ test('tracks per-PID state-file changes and removes deleted targets', async (con
 
   await bridge.start()
   const statePath = join(stateDirectory, `${process.pid}.json`)
-  const added = once(bridge, 'changed', { signal: AbortSignal.timeout(1500) })
   await writeFile(statePath, JSON.stringify({ pid: process.pid, buildPath: null }))
+  await assert.rejects(once(bridge, 'changed', { signal: AbortSignal.timeout(200) }), { name: 'AbortError' })
+  assert.deepEqual(bridge.getTargets(), [])
+
+  confirmed = true
+  const added = once(bridge, 'changed', { signal: AbortSignal.timeout(1500) })
+  bridge.refresh()
   await added
   assert.deepEqual(bridge.getTargets(), [{ pid: process.pid, buildPath: null, buildName: null }])
 

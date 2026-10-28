@@ -11,7 +11,7 @@ Windows x64용 PoB Agent 앱, 별도 PoB 감시자 프로세스, Python MCP 프�
 - 지원 운영체제: Windows만 지원합니다.
 - 지원 아키텍처: x64만 지원합니다.
 - UI 및 앱 셸: Electron, React, TypeScript, Vite.
-- PoB 감시자: Agent와 별도 프로세스로 같은 설치 실행 파일의 `--watcher` 모드에서 실행합니다. Windows 로그인 자동 실행이 기본이며 설치 프로그램이 로그인 항목을 등록합니다. Agent 설정에서 같은 항목을 꺼 수동 실행으로 바꿀 수 있습니다. WMI 이벤트와 감시자 단일 인스턴스 잠금에는 프로젝트 소유 Windows 네이티브 Node 모듈(`.node`)을 사용합니다.
+- PoB 감시자: Agent와 별도 프로세스로 같은 설치 실행 파일의 `--watcher` 모드에서 실행합니다. Windows 로그인 자동 실행이 기본이며 설치 프로그램이 로그인 항목을 등록합니다. Agent 설정에서 같은 항목을 꺼 수동 실행으로 바꿀 수 있습니다. Windows 커널 추적 이벤트와 감시자 단일 인스턴스 잠금에는 프로젝트 소유 Windows 네이티브 Node 모듈(`.node`)을 사용합니다.
 - Python MCP 서버: Agent와 분리된 자식 프로세스이며, Electron 메인 프로세스와 stdio로 통신합니다.
 - LuaJIT 실행 파일과 PoB 계산 소스는 Agent 패키지에 포함하지 않습니다. 사용자가 별도로 준비한 LuaJIT과 PoB 소스 체크아웃을 사용합니다.
 - Python과 LuaJIT 사이의 JSON Lines 통신을 처리하는 프로젝트 소유 Lua 어댑터는 Agent 패키지에 포함합니다.
