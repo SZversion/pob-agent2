@@ -37,6 +37,7 @@ export default function App() {
     void window.pobBridge.getState().then(setBridgeState);
     return window.pobBridge.onTargetsChanged((nextState) => {
       setBridgeState(nextState);
+      if (nextState.selectedPid !== null) setSelectionError("");
     });
   }, []);
 
