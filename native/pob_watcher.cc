@@ -1,9 +1,11 @@
 #include <node_api.h>
 #include <windows.h>
 #include <tlhelp32.h>
-#include <wbemidl.h>
+#include <evntrace.h>
+#include <tdh.h>
 #include <shellapi.h>
 #include <atomic>
+#include <cstring>
 #include <cwchar>
 #include <string>
 #include <thread>
@@ -19,7 +21,7 @@ struct Subscription {
   std::atomic<bool> running{true};
   napi_threadsafe_function callback;
   std::thread started;
-  std::thread stopped;
+  std::atomic<TRACEHANDLE> traceSession{0};
 };
 
 static HANDLE watcherMutex = nullptr;
@@ -275,88 +277,99 @@ static void Emit(Subscription* state, const char* type, DWORD pid = 0, std::stri
   if (napi_call_threadsafe_function(state->callback, event, napi_tsfn_nonblocking) != napi_ok) delete event;
 }
 
-static void WatchEvents(Subscription* state, bool starting) {
-  const char* eventType = starting ? "start" : "stop";
-  HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-  if (FAILED(initialized)) {
-    Emit(state, "error", static_cast<DWORD>(initialized), std::string(eventType) + ":CoInitializeEx");
-    napi_release_threadsafe_function(state->callback, napi_tsfn_release);
-    return;
-  }
+static const GUID processProvider = {0x22fb2cd6, 0x0e7b, 0x422b, {0xa0, 0xc7, 0x2f, 0xad, 0x1f, 0xd0, 0xe7, 0x16}};
 
-  const wchar_t* query = starting ? L"SELECT * FROM Win32_ProcessStartTrace" : L"SELECT * FROM Win32_ProcessStopTrace";
-  const DWORD session = CurrentSession();
+static bool ReadTraceProperty(PEVENT_RECORD record, const wchar_t* name, std::vector<BYTE>* result) {
+  PROPERTY_DATA_DESCRIPTOR property{};
+  property.PropertyName = reinterpret_cast<ULONGLONG>(name);
+  property.ArrayIndex = ULONG_MAX;
+  ULONG size = 0;
+  if (TdhGetPropertySize(record, 0, nullptr, 1, &property, &size) != ERROR_SUCCESS || !size) return false;
+  result->resize(size);
+  return TdhGetProperty(record, 0, nullptr, 1, &property, size, result->data()) == ERROR_SUCCESS;
+}
+
+static void WINAPI ProcessEvent(PEVENT_RECORD record) {
+  auto* state = static_cast<Subscription*>(record->UserContext);
+  const USHORT id = record->EventHeader.EventDescriptor.Id;
+  if (id != 1 && id != 2) return;
+  std::vector<BYTE> name, pid, session;
+  if (!ReadTraceProperty(record, L"ImageName", &name) || name.empty() ||
+      !ReadTraceProperty(record, L"ProcessID", &pid) || pid.size() != sizeof(DWORD)) return;
+  name.resize(name.size() + sizeof(wchar_t), 0);
+  if (id == 1) {
+    const auto* fullName = reinterpret_cast<const wchar_t*>(name.data());
+    const wchar_t* baseName = wcsrchr(fullName, L'\\');
+    if (_wcsicmp(baseName ? baseName + 1 : fullName, L"Path of Building.exe") != 0) return;
+  } else {
+    const auto* fullName = reinterpret_cast<const char*>(name.data());
+    const char* baseName = strrchr(fullName, '\\');
+    const char* executable = baseName ? baseName + 1 : fullName;
+    // Process-stop ImageName can be truncated by Windows.
+    if (_stricmp(executable, "Path of Building.exe") != 0 && _stricmp(executable, "Path of Buildi") != 0) return;
+  }
+  if (id == 1 && (!ReadTraceProperty(record, L"SessionID", &session) || session.size() != sizeof(DWORD) ||
+                  *reinterpret_cast<const DWORD*>(session.data()) != CurrentSession())) return;
+  Emit(state, id == 1 ? "start" : "stop", *reinterpret_cast<const DWORD*>(pid.data()));
+}
+
+static std::vector<BYTE> TraceProperties(const std::wstring& name) {
+  std::vector<BYTE> buffer(sizeof(EVENT_TRACE_PROPERTIES) + (name.size() + 1) * sizeof(wchar_t));
+  auto* properties = reinterpret_cast<EVENT_TRACE_PROPERTIES*>(buffer.data());
+  properties->Wnode.BufferSize = static_cast<ULONG>(buffer.size());
+  properties->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
+  properties->Wnode.ClientContext = 1;
+  properties->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
+  properties->FlushTimer = 1;
+  properties->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
+  return buffer;
+}
+
+static void WatchEvents(Subscription* state) {
+  const std::wstring name = L"PoBAgentWatcher-" + std::to_wstring(CurrentSession());
   while (state->running) {
-    IWbemLocator* locator = nullptr;
-    IWbemServices* services = nullptr;
-    IEnumWbemClassObject* events = nullptr;
-    const char* stage = "CoCreateInstance";
-    HRESULT status = CoCreateInstance(CLSID_WbemLocator, nullptr, CLSCTX_INPROC_SERVER,
-                                      IID_IWbemLocator, reinterpret_cast<void**>(&locator));
-    if (SUCCEEDED(status)) {
-      stage = "ConnectServer";
-      BSTR name = SysAllocString(L"ROOT\\CIMV2");
-      status = locator->ConnectServer(name, nullptr, nullptr, nullptr, 0, nullptr, nullptr, &services);
-      SysFreeString(name);
-    }
-    if (SUCCEEDED(status)) {
-      stage = "CoSetProxyBlanket services";
-      status = CoSetProxyBlanket(services, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, nullptr,
-                                RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE);
-    }
-    if (SUCCEEDED(status)) {
-      stage = "ExecNotificationQuery";
-      BSTR language = SysAllocString(L"WQL");
-      BSTR expression = SysAllocString(query);
-      status = services->ExecNotificationQuery(language, expression,
-                                               WBEM_FLAG_RETURN_IMMEDIATELY | WBEM_FLAG_FORWARD_ONLY,
-                                               nullptr, &events);
-      SysFreeString(expression);
-      SysFreeString(language);
-    }
-    if (SUCCEEDED(status)) {
-      stage = "CoSetProxyBlanket events";
-      status = CoSetProxyBlanket(events, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, nullptr,
-                                RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE);
-    }
-    if (SUCCEEDED(status)) {
-      stage = "Next";
-      Emit(state, "resync", 0, eventType);
-      while (state->running) {
-        IWbemClassObject* item = nullptr;
-        ULONG count = 0;
-        status = events->Next(1000, 1, &item, &count);
-        if (status == WBEM_S_TIMEDOUT) continue;
-        if (FAILED(status) || count == 0) break;
-        VARIANT name, pid, processSession;
-        VariantInit(&name);
-        VariantInit(&pid);
-        VariantInit(&processSession);
-        HRESULT nameStatus = item->Get(L"ProcessName", 0, &name, nullptr, nullptr);
-        HRESULT pidStatus = item->Get(L"ProcessID", 0, &pid, nullptr, nullptr);
-        HRESULT sessionStatus = item->Get(L"SessionID", 0, &processSession, nullptr, nullptr);
-        if (SUCCEEDED(nameStatus) && SUCCEEDED(pidStatus) && SUCCEEDED(sessionStatus) &&
-            name.vt == VT_BSTR && _wcsicmp(name.bstrVal, L"Path of Building.exe") == 0 &&
-            (pid.vt == VT_I4 || pid.vt == VT_UI4) &&
-            (processSession.vt == VT_I4 || processSession.vt == VT_UI4) &&
-            processSession.ulVal == session) {
-          Emit(state, eventType, pid.ulVal);
-        }
-        VariantClear(&processSession);
-        VariantClear(&pid);
-        VariantClear(&name);
-        item->Release();
+    auto buffer = TraceProperties(name);
+    auto* properties = reinterpret_cast<EVENT_TRACE_PROPERTIES*>(buffer.data());
+    TRACEHANDLE session = 0;
+    ULONG status = StartTraceW(&session, name.c_str(), properties);
+    if (status == ERROR_ALREADY_EXISTS && watcherMutex) {
+      status = ControlTraceW(0, name.c_str(), properties, EVENT_TRACE_CONTROL_STOP);
+      if (status == ERROR_SUCCESS || status == ERROR_WMI_INSTANCE_NOT_FOUND) {
+        buffer = TraceProperties(name);
+        properties = reinterpret_cast<EVENT_TRACE_PROPERTIES*>(buffer.data());
+        status = StartTraceW(&session, name.c_str(), properties);
       }
     }
-    if (events) events->Release();
-    if (services) services->Release();
-    if (locator) locator->Release();
+    const char* stage = "StartTrace";
+    if (status == ERROR_SUCCESS) {
+      state->traceSession = session;
+      stage = "EnableTraceEx2";
+      status = EnableTraceEx2(session, &processProvider, EVENT_CONTROL_CODE_ENABLE_PROVIDER,
+                              TRACE_LEVEL_INFORMATION, 0x10, 0, 0, nullptr);
+      if (status == ERROR_SUCCESS && state->running) {
+        EVENT_TRACE_LOGFILEW log{};
+        log.LoggerName = const_cast<LPWSTR>(name.c_str());
+        log.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
+        log.EventRecordCallback = ProcessEvent;
+        log.Context = state;
+        stage = "OpenTrace";
+        TRACEHANDLE consumer = OpenTraceW(&log);
+        if (consumer != INVALID_PROCESSTRACE_HANDLE) {
+          Emit(state, "resync", 0, "start");
+          Emit(state, "resync", 0, "stop");
+          stage = "ProcessTrace";
+          if (state->running) status = ProcessTrace(&consumer, 1, nullptr, nullptr);
+          CloseTrace(consumer);
+        } else status = GetLastError();
+      }
+      ControlTraceW(session, name.c_str(), properties, EVENT_TRACE_CONTROL_STOP);
+      state->traceSession = 0;
+    }
     if (state->running) {
-      Emit(state, "error", static_cast<DWORD>(status), std::string(eventType) + ":" + stage);
+      Emit(state, "error", status, std::string("start:") + stage);
       Sleep(1000);
     }
   }
-  CoUninitialize();
   napi_release_threadsafe_function(state->callback, napi_tsfn_release);
 }
 
@@ -372,15 +385,14 @@ static napi_value Subscribe(napi_env env, napi_callback_info info) {
   auto* state = new Subscription();
   napi_value name;
   napi_create_string_utf8(env, "PoB process events", NAPI_AUTO_LENGTH, &name);
-  if (napi_create_threadsafe_function(env, args[0], nullptr, name, 0, 2, nullptr, nullptr,
+  if (napi_create_threadsafe_function(env, args[0], nullptr, name, 0, 1, nullptr, nullptr,
                                       nullptr, Deliver, &state->callback) != napi_ok) {
     delete state;
     return ThrowWindowsError(env, "Could not start PoB process callbacks");
   }
   napi_unref_threadsafe_function(env, state->callback);
   subscription = state;
-  state->started = std::thread(WatchEvents, state, true);
-  state->stopped = std::thread(WatchEvents, state, false);
+  state->started = std::thread(WatchEvents, state);
   napi_value result;
   napi_get_undefined(env, &result);
   return result;
@@ -389,8 +401,13 @@ static napi_value Subscribe(napi_env env, napi_callback_info info) {
 static napi_value Stop(napi_env env, napi_callback_info) {
   if (subscription) {
     subscription->running = false;
+    const TRACEHANDLE session = subscription->traceSession.load();
+    if (session) {
+      const std::wstring name = L"PoBAgentWatcher-" + std::to_wstring(CurrentSession());
+      auto buffer = TraceProperties(name);
+      ControlTraceW(session, name.c_str(), reinterpret_cast<EVENT_TRACE_PROPERTIES*>(buffer.data()), EVENT_TRACE_CONTROL_STOP);
+    }
     subscription->started.join();
-    subscription->stopped.join();
     delete subscription;
     subscription = nullptr;
   }
