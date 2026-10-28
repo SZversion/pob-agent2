@@ -38,10 +38,11 @@ test('passes the full first PID list and retains suppression through watcher res
   context.after(() => first.stop())
   await first.start()
   assert.deepEqual(launches, [[101, 102]])
+  assert.equal(first.recoveryCheck, null)
   notify({ type: 'error', pid: 0x80041003, stage: 'start:Next' })
-  assert.ok(first.recoveryCheck)
+  assert.equal(first.recoveryCheck, null)
   notify({ type: 'resync', pid: 0, stage: 'start' })
-  assert.ok(first.recoveryCheck)
+  assert.equal(first.recoveryCheck, null)
 
   const agent = connect(watcherPipePath(sessionId))
   await once(agent, 'connect')
@@ -61,11 +62,12 @@ test('passes the full first PID list and retains suppression through watcher res
 
   pids.clear()
   notify({ type: 'stop', pid: 101 })
-  await new Promise((resolve) => setTimeout(resolve, 100))
+  await waitFor(() => second.recoveryCheck !== null)
   pids.add(104)
   notify({ type: 'start', pid: 104 })
   await waitFor(() => launches.length === 2)
   assert.deepEqual(launches[1], [104])
+  assert.equal(second.recoveryCheck, null)
 })
 
 test('discovers a running PoB when its start event is missed', async (context) => {
@@ -87,4 +89,5 @@ test('discovers a running PoB when its start event is missed', async (context) =
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
   assert.deepEqual(launches, [[98765]])
+  assert.equal(watcher.recoveryCheck, null)
 })
