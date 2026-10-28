@@ -23,7 +23,8 @@ test('launches a process under the standard user token', { skip: !watcher.isElev
   assert.ok(watcher.isProcessAlive(pid), 'Standard user process exited immediately')
 })
 
-test('subscribes to process events and enumerates PoB processes', { skip: !watcher.isElevated() }, async (context) => {
+test('starts kernel tracing and enumerates PoB processes', { skip: !watcher.isElevated() }, async (context) => {
+  assert.ok(watcher.acquireLock(), 'Another watcher is running in this session')
   const directory = join(tmpdir(), `pob-watcher-${randomUUID()}`)
   const executable = join(directory, 'Path of Building.exe')
   const setup = `const fs = require('node:fs'); fs.mkdirSync(${JSON.stringify(directory)}); fs.copyFileSync(process.env.ComSpec, ${JSON.stringify(executable)})`
@@ -36,7 +37,7 @@ test('subscribes to process events and enumerates PoB processes', { skip: !watch
   context.after(() => watcher.stop())
   await waitFor(
     () => events.filter((item) => item.type === 'resync').length >= 2,
-    () => `WMI subscriptions did not start: ${JSON.stringify(events)}`,
+    () => `Kernel tracing did not start: ${JSON.stringify(events)}`,
   )
 
   const child = spawn(executable, ['/d', '/c', 'ping -n 30 127.0.0.1 > nul'], { windowsHide: true })
