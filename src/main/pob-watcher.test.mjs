@@ -41,7 +41,7 @@ test('passes the full first PID list and retains suppression through watcher res
   notify({ type: 'error', pid: 0x80041003, stage: 'start:Next' })
   assert.ok(first.recoveryCheck)
   notify({ type: 'resync', pid: 0, stage: 'start' })
-  assert.equal(first.recoveryCheck, null)
+  assert.ok(first.recoveryCheck)
 
   const agent = connect(watcherPipePath(sessionId))
   await once(agent, 'connect')
@@ -66,4 +66,25 @@ test('passes the full first PID list and retains suppression through watcher res
   notify({ type: 'start', pid: 104 })
   await waitFor(() => launches.length === 2)
   assert.deepEqual(launches[1], [104])
+})
+
+test('discovers a running PoB when its start event is missed', async (context) => {
+  const userDataPath = await mkdtemp(join(tmpdir(), 'pob-watcher-recovery-'))
+  const pids = new Set()
+  const launches = []
+  const native = {
+    sessionId: () => process.pid + 200000,
+    listPobs: () => [...pids],
+    isProcessAlive: () => true,
+    subscribe: () => {},
+    stop: () => {},
+  }
+  const watcher = new PobWatcher(native, userDataPath, (ids) => { launches.push(ids); return process.pid })
+  context.after(async () => { watcher.stop(); await rm(userDataPath, { recursive: true, force: true }) })
+  await watcher.start()
+  pids.add(98765)
+  for (let attempt = 0; attempt < 70 && !launches.length; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  assert.deepEqual(launches, [[98765]])
 })
