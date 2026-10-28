@@ -1,6 +1,6 @@
 # PoB 측 상태 송신
 
-> 상태: 송신 코드를 Git에서 추적하지 않는 `.pob/Path of Building Community` 개발용 복사본에 구현했다. 설치본 적용과 통합 검증은 아직 완료하지 않았다.
+> 상태: 송신 코드를 Git에서 추적하지 않는 `.pob/Path of Building Community` 개발용 복사본에 구현하고 번들 LuaJIT으로 송신 함수를 검증했다. PoB UI와 Agent의 통합 검증 및 설치본 적용은 아직 완료하지 않았다.
 
 이 문서는 PoB가 현재 활성화된 저장 빌드 파일 경로와 자신의 PID를 상태 파일에 기록하는 변경만 정의한다. 설치본에 송신 코드를 적용하는 절차는 [브리지 설치](pob-bridge-install.md), Agent의 상태 파일 수신은 [Agent 측 브리지](pob-bridge.md), PoB 프로세스 감지는 [감시자](pob-watcher.md)를 따른다.
 
@@ -15,7 +15,7 @@ PoB 연동은 활성 저장 빌드 파일의 경로만 보낸다. 파일 경로�
 ## 상태 파일 송신
 
 - PoB는 `%APPDATA%/pob-agent/pob-bridge/<PID>.json` 상태 파일을 기록한다. 파일에는 `{"pid": 1234, "buildPath": "C:\\...\\build.xml"}`만 담고, 저장된 빌드가 없으면 `buildPath`를 `null`로 기록한다.
-- LuaJIT FFI의 `GetCurrentProcessId`로 PoB PID를 얻고, `dkjson`으로 상태 JSON을 만든다. 먼저 `<PID>.json.tmp`에 쓴 뒤 `MoveFileExA`의 replace-existing 및 write-through 옵션으로 본 파일을 교체한다.
+- LuaJIT FFI의 `GetCurrentProcessId`로 PoB PID를 얻고, `dkjson`으로 상태 JSON을 만든다. 저장 경로가 없으면 `json.null`로 JSON의 `buildPath: null`을 유지한다. 상태 파일 경로는 Windows 유니코드 API로 처리하며, 먼저 `<PID>.json.tmp`에 쓴 뒤 `MoveFileExW`의 replace-existing 및 write-through 옵션으로 본 파일을 교체한다.
 - `Modules/Main.lua`는 `PobAgentBridgeDraft`를 로드하고, 프레임에서 모드 변경이 끝난 뒤 BUILD 모드의 `GetArgs()` 첫 반환값(저장 빌드 경로)을 전달한다. 송신 함수는 경로가 이전과 같으면 파일을 다시 쓰지 않으므로 빌드 내부 값 수정은 상태 파일 갱신을 만들지 않는다. 저장 경로가 없으면 `null`을 기록한다.
 - PoB 시작 시 현재 선택된 빌드를 한 번 알리고, 이후에는 사용자가 다른 빌드를 선택할 때만 상태 파일을 갱신한다. 같은 빌드 안의 값 변경은 파일에 반영하지 않는다.
 
@@ -23,7 +23,7 @@ PoB 연동은 활성 저장 빌드 파일의 경로만 보낸다. 파일 경로�
 
 PoB 측 변경은 사용자의 설치본과 분리해 둔 개발용 복사본에서 구현한다. 개발 중 설치본을 수정하지 않는다. 개발용 복사본을 변경하기 전에 현재 버전을 확인하고 대상 원본 파일을 보존하며, 업데이트가 실험 내용을 예고 없이 덮어쓰지 않도록 업데이트 방식을 조사한다.
 
-PoB 개발 복사본에서 활성 저장 빌드 전환과 초기 미저장 상태의 전송은 구현했다. 저장, 다른 이름으로 저장, 빌드 닫기, 비ASCII 사용자 경로, FFI 실패 및 실제 Agent 수신까지의 통합 검증은 남아 있다. 빌드 내용이 바뀌었지만 저장 경로가 같은 경우 상태 파일은 갱신하지 않는다.
+PoB 개발 복사본에서 활성 저장 빌드 전환과 초기 미저장 상태의 전송은 구현했다. 번들 LuaJIT으로 송신 함수를 실행해 `buildPath: null`, 동일 경로 중복 쓰기 방지, 한글 `%APPDATA%`와 빌드 경로, 임시 파일 쓰기 실패 후 재시도를 검증했다. PoB UI에서 저장, 다른 이름으로 저장, 빌드 닫기와 실제 Agent 수신까지의 통합 검증은 남아 있다. 빌드 내용이 바뀌었지만 저장 경로가 같은 경우 상태 파일은 갱신하지 않는다.
 
 PoB 송신기는 `%APPDATA%/pob-agent/pob-bridge`를 고정 공유 경로로 사용한다. TCP, 포트, 토큰은 사용하지 않는다. Agent와 PoB가 이 고정 경로를 공유하므로 설치 위치나 패키징 형태에 따라 상태 파일 경로를 바꾸지 않는다.
 
@@ -37,5 +37,5 @@ PoB 송신기는 `%APPDATA%/pob-agent/pob-bridge`를 고정 공유 경로로 사
 
 ## 남은 검증
 
-- 저장, 다른 이름으로 저장, 빌드 닫기, 비ASCII 경로와 FFI 실패 시의 송신 동작을 개발 복사본에서 검증한다.
+- 저장, 다른 이름으로 저장, 빌드 닫기, 비ASCII 경로와 FFI 실패 시의 송신 동작을 PoB UI와 함께 검증한다.
 - 설치본 적용과 재시작 후 송신 검증은 [브리지 설치](pob-bridge-install.md)에서 관리한다.
