@@ -20,6 +20,7 @@ export class PobWatcher {
   private suppressed = false
   private markerExists = false
   private initialized = false
+  private stopped = false
   private recoveryCheck: ReturnType<typeof setInterval> | null = null
 
   constructor(
@@ -72,6 +73,7 @@ export class PobWatcher {
   }
 
   stop(): void {
+    this.stopped = true
     this.native.stop()
     if (this.recoveryCheck) clearInterval(this.recoveryCheck)
     this.recoveryCheck = null
@@ -87,6 +89,7 @@ export class PobWatcher {
   }
 
   private async resync(): Promise<void> {
+    if (this.stopped) return
     const next = new Set(this.native.listPobs())
     if (!this.initialized) {
       this.initialized = true
@@ -97,6 +100,13 @@ export class PobWatcher {
       } catch {
         this.markerExists = false
       }
+    }
+    if (this.stopped) return
+    if (next.size && this.recoveryCheck) {
+      clearInterval(this.recoveryCheck)
+      this.recoveryCheck = null
+    } else if (!next.size && !this.recoveryCheck) {
+      this.recoveryCheck = setInterval(() => this.enqueue(() => this.resync()), 5000)
     }
     this.active.clear()
     for (const pid of next) this.active.add(pid)
