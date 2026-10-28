@@ -12,16 +12,52 @@ let hasSelectedTarget = false
 let watcherNative: WatcherNative | null = null
 let disconnectWatcher: (() => void) | null = null
 const confirmedPids = new Set<number>()
+// shortcut: a late PoB state file can miss this window; increase it or use readiness signaling if startup is slower.
+const AUTO_CONNECT_DELAY = 2000
+let autoConnectTimer: ReturnType<typeof setTimeout> | null = null
+let previousTargetPids = ''
+
+function scheduleAutoConnect(): void {
+  if (hasSelectedTarget) return
+  if (autoConnectTimer) clearTimeout(autoConnectTimer)
+  autoConnectTimer = setTimeout(() => {
+    autoConnectTimer = null
+    const targets = pobBridge?.getTargets() ?? []
+    if (targets.length === 1) selectTarget(targets[0].pid)
+  }, AUTO_CONNECT_DELAY)
+}
 
 function receivePids(args: string[]): void {
   if (hasSelectedTarget) return
+  let receivedNewPid = false
   for (const arg of args) {
     const match = /^--pob-pid=(\d+)$/.exec(arg)
     if (!match) continue
     const pid = Number(match[1])
-    if (Number.isSafeInteger(pid) && pid > 0) confirmedPids.add(pid)
+    if (Number.isSafeInteger(pid) && pid > 0 && !confirmedPids.has(pid)) {
+      confirmedPids.add(pid)
+      receivedNewPid = true
+    }
   }
+  if (receivedNewPid) scheduleAutoConnect()
   pobBridge?.refresh()
+}
+
+function selectTarget(pid: unknown): { target: { pid: number; buildName: string | null } } | { error: string } {
+  if (!Number.isSafeInteger(pid) || (pid as number) <= 0 || !pobBridge?.hasTarget(pid as number)) {
+    return { error: '선택한 PoB 연결이 종료되었습니다.' }
+  }
+  if (hasSelectedTarget && selectedPid !== pid) {
+    return { error: '연결된 PoB는 변경할 수 없습니다.' }
+  }
+  selectedPid = pid as number
+  hasSelectedTarget = true
+  if (autoConnectTimer) clearTimeout(autoConnectTimer)
+  autoConnectTimer = null
+  const target = pobBridge.getTargets().find((item) => item.pid === selectedPid)
+  if (!target) return { error: '선택한 PoB 연결이 종료되었습니다.' }
+  mainWindow?.webContents.send('pob:targets-changed', getRendererState())
+  return { target: toRendererTarget(target) }
 }
 
 function toRendererTarget(target: PobTarget): { pid: number; buildName: string | null } {
@@ -77,6 +113,11 @@ async function startAgent(): Promise<void> {
     (pid) => confirmedPids.has(pid) && (watcherNative?.listPobs().includes(pid) ?? false),
   )
   pobBridge.on('changed', (targets: PobTarget[]) => {
+    const nextTargetPids = targets.map(({ pid }) => pid).sort((left, right) => left - right).join(',')
+    if (nextTargetPids !== previousTargetPids) {
+      previousTargetPids = nextTargetPids
+      scheduleAutoConnect()
+    }
     if (selectedPid !== null && !targets.some((target) => target.pid === selectedPid)) {
       const processExited = !pobBridge?.isProcessAlive(selectedPid)
       selectedPid = null
@@ -124,19 +165,10 @@ if (process.argv.includes('--watcher')) {
   })
 }
 ipcMain.handle('pob:get-state', getRendererState)
-ipcMain.handle('pob:select-target', (_event, pid: unknown) => {
-  if (!Number.isSafeInteger(pid) || (pid as number) <= 0 || !pobBridge?.hasTarget(pid as number)) {
-    return { error: '선택한 PoB 연결이 종료되었습니다.' }
-  }
-  if (hasSelectedTarget && selectedPid !== pid) {
-    return { error: '연결된 PoB는 변경할 수 없습니다.' }
-  }
-  selectedPid = pid as number
-  hasSelectedTarget = true
-  const target = pobBridge.getTargets().find((item) => item.pid === selectedPid)
-  return target ? { target: toRendererTarget(target) } : { error: '선택한 PoB 연결이 종료되었습니다.' }
-})
+ipcMain.handle('pob:select-target', (_event, pid: unknown) => selectTarget(pid))
 app.on('before-quit', () => {
+  if (autoConnectTimer) clearTimeout(autoConnectTimer)
+  autoConnectTimer = null
   disconnectWatcher?.()
   void pobBridge?.stop()
 })
