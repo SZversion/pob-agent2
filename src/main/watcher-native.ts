@@ -10,6 +10,9 @@ export type WatcherNative = {
   isProcessAlive(pid: number): boolean
   launchAsUser(executable: string, args: string[]): number
   launchElevated(executable: string, args: string[]): void
+  openWatcherPipe(path: string): boolean
+  isWatcherPipeConnected(): boolean
+  closeWatcherPipe(): void
   listPobs(): number[]
   subscribe(callback: (event: ProcessEvent) => void): void
   stop(): void
