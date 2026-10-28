@@ -1,11 +1,28 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
 import { PobBridgeService, type PobTarget } from './pob-bridge'
+import { PobWatcher } from './pob-watcher'
+import { connectToWatcher } from './watcher-client'
+import { loadWatcherNative, type WatcherNative } from './watcher-native'
 
 let mainWindow: BrowserWindow | null = null
 let pobBridge: PobBridgeService | null = null
 let selectedPid: number | null = null
 let hasSelectedTarget = false
+let watcherNative: WatcherNative | null = null
+let disconnectWatcher: (() => void) | null = null
+const confirmedPids = new Set<number>()
+
+function receivePids(args: string[]): void {
+  if (hasSelectedTarget) return
+  for (const arg of args) {
+    const match = /^--pob-pid=(\d+)$/.exec(arg)
+    if (!match) continue
+    const pid = Number(match[1])
+    if (Number.isSafeInteger(pid) && pid > 0) confirmedPids.add(pid)
+  }
+  pobBridge?.refresh()
+}
 
 function toRendererTarget(target: PobTarget): { pid: number; buildName: string | null } {
   return { pid: target.pid, buildName: target.buildName }
@@ -48,8 +65,17 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(async () => {
-  pobBridge = new PobBridgeService(app.getPath('userData'))
+async function startAgent(): Promise<void> {
+  try {
+    watcherNative = loadWatcherNative()
+    disconnectWatcher = connectToWatcher(watcherNative)
+  } catch (error) {
+    console.error('PoB watcher integration could not start:', error)
+  }
+  pobBridge = new PobBridgeService(
+    app.getPath('userData'),
+    (pid) => confirmedPids.has(pid) && (watcherNative?.listPobs().includes(pid) ?? false),
+  )
   pobBridge.on('changed', (targets: PobTarget[]) => {
     if (selectedPid !== null && !targets.some((target) => target.pid === selectedPid)) {
       const processExited = !pobBridge?.isProcessAlive(selectedPid)
@@ -64,7 +90,39 @@ app.whenReady().then(async () => {
     console.error('PoB bridge could not start:', error)
   }
   createWindow()
-})
+}
+
+async function startWatcher(): Promise<void> {
+  const native = loadWatcherNative()
+  if (!native.isElevated()) throw new Error('PoB watcher requires administrator privileges')
+  if (!native.acquireLock()) {
+    app.quit()
+    return
+  }
+  const watcher = new PobWatcher(native, app.getPath('userData'), (pids) => {
+    const args = pids.map((pid) => `--pob-pid=${pid}`)
+    if (!app.isPackaged) args.unshift(app.getAppPath())
+    return native.launchAsUser(process.execPath, args)
+  })
+  app.on('before-quit', () => watcher.stop())
+  await watcher.start()
+}
+
+if (process.argv.includes('--watcher')) {
+  void app.whenReady().then(startWatcher).catch((error: unknown) => {
+    console.error('PoB watcher failed:', error)
+    app.quit()
+  })
+} else if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  receivePids(process.argv)
+  app.on('second-instance', (_event, args) => receivePids(args))
+  void app.whenReady().then(startAgent).catch((error: unknown) => {
+    console.error('PoB Agent failed:', error)
+    app.quit()
+  })
+}
 ipcMain.handle('pob:get-state', getRendererState)
 ipcMain.handle('pob:select-target', (_event, pid: unknown) => {
   if (!Number.isSafeInteger(pid) || (pid as number) <= 0 || !pobBridge?.hasTarget(pid as number)) {
@@ -79,6 +137,9 @@ ipcMain.handle('pob:select-target', (_event, pid: unknown) => {
   return target ? { target: toRendererTarget(target) } : { error: '선택한 PoB 연결이 종료되었습니다.' }
 })
 app.on('before-quit', () => {
+  disconnectWatcher?.()
   void pobBridge?.stop()
 })
-app.on('window-all-closed', () => app.quit())
+app.on('window-all-closed', () => {
+  if (!process.argv.includes('--watcher')) app.quit()
+})
