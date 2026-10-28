@@ -15,7 +15,6 @@ export class PobWatcher {
   private readonly launchChecks = new Set<ReturnType<typeof setInterval>>()
   private readonly active = new Set<number>()
   private readonly delivered = new Set<number>()
-  private readonly failedSubscriptions = new Set<string>()
   private server: Server | null = null
   private queue: Promise<void> = Promise.resolve()
   private suppressed = false
@@ -63,20 +62,11 @@ export class PobWatcher {
     this.native.subscribe((event) => {
       if (event.type === 'error') {
         console.error('PoB process event subscription interrupted; retrying:', event.stage, event.pid.toString(16))
-        const source = event.stage?.split(':', 1)[0]
-        if (source === 'start' || source === 'stop') this.failedSubscriptions.add(source)
-        if (!this.recoveryCheck) this.recoveryCheck = setInterval(() => this.enqueue(() => this.resync()), 5000)
         return
-      }
-      if (event.type === 'resync') {
-        this.failedSubscriptions.delete(event.stage ?? '')
-        if (!this.failedSubscriptions.size && this.recoveryCheck) {
-          clearInterval(this.recoveryCheck)
-          this.recoveryCheck = null
-        }
       }
       this.enqueue(() => this.resync())
     })
+    this.recoveryCheck = setInterval(() => this.enqueue(() => this.resync()), 5000)
     this.enqueue(() => this.resync())
     await this.queue
   }
